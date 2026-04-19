@@ -2,6 +2,29 @@ import type { Metadata } from "next";
 import { ReactNode } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
+import { Sora, Instrument_Serif, Fira_Code } from "next/font/google";
+
+const sora = Sora({
+  subsets: ["latin"],
+  weight: ["300", "400", "500", "600", "700", "800"],
+  display: "swap",
+  variable: "--font-sora",
+});
+
+const instrumentSerif = Instrument_Serif({
+  subsets: ["latin"],
+  weight: "400",
+  style: ["normal", "italic"],
+  display: "swap",
+  variable: "--font-instrument",
+});
+
+const firaCode = Fira_Code({
+  subsets: ["latin"],
+  weight: ["400", "500", "600"],
+  display: "swap",
+  variable: "--font-fira",
+});
 
 export const metadata: Metadata = {
   title: "FinancialHero — Seu superpoder financeiro",
@@ -15,15 +38,11 @@ export default function RootLayout({
   children: ReactNode;
 }) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning>
-      <head>
-        <link rel="preconnect" href="https://fonts.googleapis.com" />
-        <link rel="preconnect" href="https://fonts.gstatic.com" crossOrigin="anonymous" />
-        <link
-          href="https://fonts.googleapis.com/css2?family=Sora:wght@300;400;500;600;700;800&family=Instrument+Serif&family=Fira+Code:wght@400;500;600&display=swap"
-          rel="stylesheet"
-        />
-      </head>
+    <html
+      lang="pt-BR"
+      suppressHydrationWarning
+      className={`${sora.variable} ${instrumentSerif.variable} ${firaCode.variable}`}
+    >
       <body className="min-h-screen">
         <ThemeProvider>{children}</ThemeProvider>
       </body>
