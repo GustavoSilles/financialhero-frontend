@@ -162,9 +162,10 @@
   }
 }
 
-@utility list-item {
-  /* List item row — used in expense/receipt lists */
-  @apply flex items-center justify-between p-4 rounded-xl transition-colors;
+@utility expense-row {
+  /* Row for expense / receipt lists. Renamed from `list-item` to avoid
+     colliding with Tailwind's built-in display utility of the same name. */
+  @apply flex items-center gap-3 p-3 rounded-xl transition-colors;
   background-color: var(--bg-item);
 
   &:hover {
