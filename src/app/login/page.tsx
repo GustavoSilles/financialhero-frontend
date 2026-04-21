@@ -1,28 +1,42 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
+import type { ApiError } from "@/api";
 
 export default function LoginPage() {
   const router = useRouter();
+  const { login, isAuthenticated, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({ email: "", password: "" });
   const [loading, setLoading] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+    setError("");
     setLoading(true);
-    // TODO: integrar com backend
-    setTimeout(() => {
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ name: "Usuário", email: formData.email })
-      );
-      router.push("/dashboard");
-    }, 800);
+    try {
+      await login({
+        email: formData.email.trim(),
+        password: formData.password,
+      });
+      router.replace("/dashboard");
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || "Não foi possível entrar. Tente novamente.");
+      setLoading(false);
+    }
   };
 
   return (
@@ -60,6 +74,12 @@ export default function LoginPage() {
               Acesse sua conta para gerenciar suas finanças
             </p>
           </div>
+
+          {error && (
+            <div className="mb-4 p-3 rounded-xl bg-hero-danger/10 text-hero-danger text-sm font-medium">
+              {error}
+            </div>
+          )}
 
           <form onSubmit={handleSubmit} className="space-y-5">
             <div>

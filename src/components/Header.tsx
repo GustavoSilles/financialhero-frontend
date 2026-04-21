@@ -1,23 +1,16 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import { User, Bell, Menu } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
+import { useAuth } from "@/contexts/AuthContext";
 
 interface HeaderProps {
   onMenuToggle?: () => void;
 }
 
 export default function Header({ onMenuToggle }: HeaderProps) {
-  const [userName, setUserName] = useState("Usuário");
-
-  useEffect(() => {
-    const stored = localStorage.getItem("user");
-    if (stored) {
-      const user = JSON.parse(stored);
-      setUserName(user.name || "Usuário");
-    }
-  }, []);
+  const { user } = useAuth();
+  const userName = user?.firstName || "Usuário";
 
   return (
     <header

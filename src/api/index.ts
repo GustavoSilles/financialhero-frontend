@@ -1,20 +1,7 @@
-/**
- * Arquivo de entrada da API
- * Exporta as classes e tipos para fácil importação
- */
+export { http, request } from "./http";
+export type { ApiError } from "./http";
 
-export { API, api } from './api';
-export { ApiClient, client } from './client';
+export { authStorage } from "./storage";
 
-export type {
-  ApiError,
-  LoginRequest,
-  LoginResponse,
-  RegisterRequest,
-  RegisterResponse,
-  CreateBillRequest,
-  Bill,
-  BillListResponse,
-  PaginationParams,
-} from './client';
-
+export { authApi } from "./auth";
+export type { LoginRequest, RegisterRequest, AuthResponse } from "./auth";
