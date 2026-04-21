@@ -1,14 +1,16 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
-import { client } from "@/api";
+import { useAuth } from "@/contexts/AuthContext";
+import type { ApiError } from "@/api";
 
 export default function RegisterPage() {
   const router = useRouter();
+  const { register, isAuthenticated, isLoading } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
   const [formData, setFormData] = useState({
     name: "",
@@ -19,6 +21,12 @@ export default function RegisterPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (!isLoading && isAuthenticated) {
+      router.replace("/dashboard");
+    }
+  }, [isAuthenticated, isLoading, router]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError("");
@@ -27,8 +35,8 @@ export default function RegisterPage() {
       setError("As senhas não coincidem");
       return;
     }
-    if (formData.password.length < 6) {
-      setError("A senha deve ter pelo menos 6 caracteres");
+    if (formData.password.length < 8) {
+      setError("A senha deve ter pelo menos 8 caracteres");
       return;
     }
 
@@ -38,28 +46,21 @@ export default function RegisterPage() {
 
     if (!firstName || !lastName) {
       setError("Informe nome e sobrenome completos");
-      setLoading(false);
       return;
     }
 
     setLoading(true);
     try {
-      const response = await client.register({
+      await register({
         firstName,
         lastName,
-        email: formData.email,
+        email: formData.email.trim(),
         password: formData.password,
       });
-
-      client.setAuthToken(response.token);
-      localStorage.setItem("token", response.token);
-      localStorage.setItem(
-        "user",
-        JSON.stringify({ name: formData.name, email: formData.email })
-      );
-      router.push("/dashboard");
-    } catch (err: any) {
-      setError(err.message || "Erro ao registrar. Tente novamente.");
+      router.replace("/dashboard");
+    } catch (err) {
+      const apiError = err as ApiError;
+      setError(apiError.message || "Erro ao registrar. Tente novamente.");
       setLoading(false);
     }
   };
@@ -148,7 +149,7 @@ export default function RegisterPage() {
                 <input
                   type={showPassword ? "text" : "password"}
                   required
-                  placeholder="Mínimo 6 caracteres"
+                  placeholder="Mínimo 8 caracteres"
                   className="input-field pl-12 pr-12"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
