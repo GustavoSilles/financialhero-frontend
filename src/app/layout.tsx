@@ -3,6 +3,7 @@ import { ReactNode } from "react";
 import "./globals.css";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { ToastProvider } from "@/contexts/ToastContext";
 import { Sora, Instrument_Serif, Fira_Code } from "next/font/google";
 
 const sora = Sora({
@@ -51,7 +52,9 @@ export default function RootLayout({
       </head>
       <body className="min-h-screen">
         <ThemeProvider>
-          <AuthProvider>{children}</AuthProvider>
+          <AuthProvider>
+            <ToastProvider>{children}</ToastProvider>
+          </AuthProvider>
         </ThemeProvider>
       </body>
     </html>

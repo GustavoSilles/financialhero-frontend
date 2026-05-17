@@ -1,6 +1,7 @@
 "use client";
 
-import { User, Bell, Menu } from "lucide-react";
+import Link from "next/link";
+import { User, Menu } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 
@@ -35,14 +36,13 @@ export default function Header({ onMenuToggle }: HeaderProps) {
       </div>
       <div className="flex items-center gap-2 xl:gap-3">
         <ThemeToggle />
-        <button className="relative p-2 rounded-xl transition-all hover:bg-hero-orange/10"
-          style={{ color: "var(--text-subtle)" }}>
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-hero-orange rounded-full" />
-        </button>
-        <div className="w-9 h-9 rounded-xl bg-hero-gradient flex items-center justify-center">
+        <Link
+          href="/dashboard/perfil"
+          aria-label="Abrir perfil"
+          className="w-9 h-9 rounded-xl bg-hero-gradient flex items-center justify-center transition-transform hover:scale-105"
+        >
           <User className="w-5 h-5 text-white" />
-        </div>
+        </Link>
       </div>
     </header>
   );

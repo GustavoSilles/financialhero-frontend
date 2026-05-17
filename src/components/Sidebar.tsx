@@ -8,6 +8,7 @@ import {
   Receipt,
   CalendarClock,
   Calculator,
+  UserCircle,
   LogOut,
   X,
 } from "lucide-react";
@@ -17,6 +18,7 @@ const menuItems = [
   { label: "Comprovantes", href: "/dashboard/comprovantes", icon: Receipt },
   { label: "Gastos Recorrentes", href: "/dashboard/gastos", icon: CalendarClock },
   { label: "Calculadora", href: "/dashboard/calculadora", icon: Calculator },
+  { label: "Perfil", href: "/dashboard/perfil", icon: UserCircle },
 ];
 
 interface SidebarProps {
