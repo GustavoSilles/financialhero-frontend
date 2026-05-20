@@ -14,3 +14,38 @@ export type {
   ChangePasswordRequest,
   ChangePasswordResponse,
 } from "./user";
+
+export { billsApi, MONTHS } from "./bills";
+export type {
+  Bill,
+  BillType,
+  PagedResponse,
+  ListBillsParams,
+  PayBillParams,
+  CreateBillRequest,
+  Month,
+  MonthBill,
+  MonthlyBillsParams,
+  UpcomingBill,
+  UpcomingBillsResponse,
+  UpcomingBillsParams,
+  TrendMonths,
+  TrendPoint,
+  TrendResponse,
+  TrendParams,
+} from "./bills";
+
+export { metricsApi } from "./metrics";
+export type {
+  MetricsResponse,
+  MetricsSummary,
+  MetricsByCategory,
+  GetMetricsParams,
+} from "./metrics";
+
+export { filesApi } from "./files";
+export type {
+  FileUpload,
+  FileType,
+  UploadFileParams,
+} from "./files";

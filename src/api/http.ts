@@ -20,6 +20,7 @@ export const http: AxiosInstance = axios.create({
   baseURL,
   timeout: 15_000,
   headers: { "Content-Type": "application/json" },
+  paramsSerializer: { indexes: null },
 });
 
 http.interceptors.request.use((config) => {
