@@ -1,5 +1,7 @@
 "use client";
 
+import { useEffect, useMemo, useState } from "react";
+import Link from "next/link";
 import {
   Receipt,
   Activity,
@@ -7,64 +9,143 @@ import {
   ArrowUpRight,
   ArrowDownRight,
   Clock,
-  FileText,
   Star,
 } from "lucide-react";
 import { ExpenseTrendChart } from "@/components/dashboard/ExpenseTrendChart";
 import { CategoryDonutChart } from "@/components/dashboard/CategoryDonutChart";
 import { RecurringVsOneOffChart } from "@/components/dashboard/RecurringVsOneOffChart";
-import { HoursPerCategoryChart } from "@/components/dashboard/HoursPerCategoryChart";
+import {
+  HoursPerCategoryChart,
+  type HoursEntry,
+} from "@/components/dashboard/HoursPerCategoryChart";
+import { getCategoryStyle } from "@/components/dashboard/billCategories";
+import { useAuth } from "@/contexts/AuthContext";
+import {
+  billsApi,
+  metricsApi,
+  type ApiError,
+  type Bill,
+  type MetricsResponse,
+  type UpcomingBill,
+} from "@/api";
 
-const mockMetrics = {
-  totalGastos: 3245.8,
-  gastosMesAnterior: 2890.5,
-  totalComprovantes: 24,
-  horasTrabalho: 86.5,
-};
-
-const categoryStyles: Record<string, { fg: string; bg: string }> = {
-  Moradia: { fg: "#ff7a00", bg: "rgba(255, 122, 0, 0.12)" },
-  Alimentação: { fg: "#7803d4", bg: "rgba(120, 3, 212, 0.12)" },
-  Serviços: { fg: "#a855f7", bg: "rgba(168, 85, 247, 0.14)" },
-  Saúde: { fg: "#4caf50", bg: "rgba(76, 175, 80, 0.14)" },
-  Transporte: { fg: "#ffaa00", bg: "rgba(255, 170, 0, 0.14)" },
-  Outros: { fg: "#6b7280", bg: "rgba(107, 114, 128, 0.14)" },
-};
-
-const mockRecentExpenses = [
-  { id: 1, name: "Aluguel", category: "Moradia", value: 1200.0, date: "2025-03-01", type: "recorrente" },
-  { id: 2, name: "Supermercado Extra", category: "Alimentação", value: 387.45, date: "2025-03-05", type: "comprovante" },
-  { id: 3, name: "Internet", category: "Serviços", value: 119.9, date: "2025-03-10", type: "recorrente" },
-  { id: 4, name: "Farmácia", category: "Saúde", value: 67.3, date: "2025-03-12", type: "comprovante" },
-  { id: 5, name: "Uber", category: "Transporte", value: 45.0, date: "2025-03-14", type: "comprovante" },
-];
-
-function formatRelativeDate(dateStr: string) {
-  const date = new Date(dateStr);
-  const today = new Date();
-  const diffDays = Math.floor(
-    (today.getTime() - date.getTime()) / (1000 * 60 * 60 * 24)
-  );
-  if (diffDays === 0) return "Hoje";
-  if (diffDays === 1) return "Ontem";
-  if (diffDays < 7) return `há ${diffDays} dias`;
-  return date.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+function toAmount(value: number | string): number {
+  return typeof value === "string" ? parseFloat(value) : value;
 }
 
-const mockUpcomingBills = [
-  { id: 1, name: "Energia Elétrica", value: 180.0, dueDate: "2025-03-20" },
-  { id: 2, name: "Água", value: 95.0, dueDate: "2025-03-22" },
-  { id: 3, name: "Cartão de Crédito", value: 890.0, dueDate: "2025-03-25" },
-];
+function formatRelativeDate(dateStr: string) {
+  // Parse the date and normalise both dates to midnight local time
+  // so timezone offsets don't produce off-by-one results.
+  const parsed = new Date(dateStr);
+  const date = new Date(parsed.getFullYear(), parsed.getMonth(), parsed.getDate());
+  const now = new Date();
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  const diffMs = today.getTime() - date.getTime();
+  const diffDays = Math.round(diffMs / (1000 * 60 * 60 * 24));
+
+  const absDays = Math.abs(diffDays);
+
+  if (absDays === 0) return "Hoje";
+  if (absDays === 1) return "Ontem";
+  if (absDays < 7) return `há ${absDays} dias`;
+  return parsed.toLocaleDateString("pt-BR", { day: "2-digit", month: "short" });
+}
 
 export default function DashboardPage() {
+  const { user, isAuthenticated } = useAuth();
+  const [metrics, setMetrics] = useState<MetricsResponse | null>(null);
+  const [recentBills, setRecentBills] = useState<Bill[]>([]);
+  const [upcomingBills, setUpcomingBills] = useState<UpcomingBill[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isAuthenticated || !user) {
+      setLoading(false);
+      return;
+    }
+
+    const now = new Date();
+    const month = now.getMonth() + 1;
+    const year = now.getFullYear();
+
+    let cancelled = false;
+    setLoading(true);
+    setError(null);
+
+    Promise.all([
+      metricsApi.get({ userId: user.id, month, year }),
+      billsApi
+        .list({ userId: user.id, page: 0, size: 5, sort: "created_at,desc" })
+        .catch(() => null),
+      billsApi.getUpcoming({ userId: user.id, days: 15 }).catch(() => null),
+    ])
+      .then(([current, recent, upcoming]) => {
+        if (cancelled) return;
+        setMetrics(current);
+        setRecentBills(recent?.content ?? []);
+        setUpcomingBills(upcoming?.bills ?? []);
+      })
+      .catch((err: ApiError) => {
+        if (cancelled) return;
+        setError(err.message ?? "Não foi possível carregar o dashboard");
+      })
+      .finally(() => {
+        if (!cancelled) setLoading(false);
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isAuthenticated, user]);
+
+  const totalGastos = metrics?.summary.totalAmount ?? 0;
+  const horasTrabalho = metrics?.summary.totalHours ?? 0;
+  const receiptsCount = metrics?.summary.receiptsCount ?? 0;
+  const previousMonthTotal = metrics?.summary.previousMonthTotal ?? 0;
   const percentChange =
-    ((mockMetrics.totalGastos - mockMetrics.gastosMesAnterior) /
-      mockMetrics.gastosMesAnterior) *
-    100;
+    previousMonthTotal > 0 ? metrics?.summary.percentChange ?? null : null;
 
   const dayOfMonth = new Date().getDate();
-  const avgPerDay = mockMetrics.totalGastos / dayOfMonth;
+  const avgPerDay = totalGastos / dayOfMonth;
+
+  const donutEntries = useMemo(
+    () =>
+      (metrics?.byCategory ?? []).map((item) => {
+        const style = getCategoryStyle(item.category);
+        return { name: style.label, value: item.totalAmount, color: style.color };
+      }),
+    [metrics]
+  );
+
+  const hoursEntries = useMemo<HoursEntry[]>(
+    () =>
+      (metrics?.byCategory ?? []).map((item) => {
+        const style = getCategoryStyle(item.category);
+        return { name: style.label, color: style.color, hours: item.hoursNeeded };
+      }),
+    [metrics]
+  );
+
+  const nextBills = useMemo(() => upcomingBills.slice(0, 3), [upcomingBills]);
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center min-h-[400px]">
+        <p className="text-muted">Carregando seu painel...</p>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="card text-center py-12">
+        <p className="text-hero-danger font-medium">{error}</p>
+        <p className="text-subtle text-sm mt-2">Tente recarregar a página.</p>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-8">
@@ -78,14 +159,14 @@ export default function DashboardPage() {
         <MetricCard
           icon={<DollarSign className="w-6 h-6" />}
           label="Gastos este mês"
-          value={`R$ ${mockMetrics.totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
-          change={percentChange}
+          value={`R$ ${totalGastos.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}`}
+          change={percentChange ?? undefined}
           color="orange"
         />
         <MetricCard
           icon={<Receipt className="w-6 h-6" />}
           label="Comprovantes"
-          value={mockMetrics.totalComprovantes.toString()}
+          value={receiptsCount.toString()}
           subtitle="documentos salvos"
           color="purple"
         />
@@ -99,25 +180,25 @@ export default function DashboardPage() {
         <MetricCard
           icon={<Clock className="w-6 h-6" />}
           label="Horas de Trabalho"
-          value={`${mockMetrics.horasTrabalho}h`}
+          value={`${horasTrabalho.toLocaleString("pt-BR", { maximumFractionDigits: 1 })}h`}
           subtitle="equivalente aos gastos"
           color="purple"
         />
       </div>
 
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
+        <CategoryDonutChart entries={donutEntries} />
+        <HoursPerCategoryChart entries={hoursEntries} />
+      </div>
+
       {/* Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2">
-          <ExpenseTrendChart />
+          <ExpenseTrendChart userId={user?.id ?? null} />
         </div>
         <div className="lg:col-span-1">
-          <RecurringVsOneOffChart />
+          <RecurringVsOneOffChart userId={user?.id ?? null} />
         </div>
-      </div>
-
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6">
-        <CategoryDonutChart />
-        <HoursPerCategoryChart />
       </div>
 
       {/* Content Grid */}
@@ -125,22 +206,25 @@ export default function DashboardPage() {
         {/* Recent Expenses */}
         <div className="lg:col-span-2 card">
           <div className="flex items-center justify-between mb-6">
-            <h3 className="text-lg font-bold text-primary">Gastos Recentes</h3>
-            <span className="text-sm text-hero-orange font-semibold cursor-pointer hover:underline">
+            <h3 className="text-lg font-bold text-primary">Adicionados Recentes</h3>
+            <Link href="/dashboard/gastos" className="text-sm text-hero-orange font-semibold hover:underline">
               Ver todos
-            </span>
+            </Link>
           </div>
-          {(() => {
-            const recorrentes = mockRecentExpenses.filter((e) => e.type === "recorrente");
-            const avulsos = mockRecentExpenses.filter((e) => e.type !== "recorrente");
-
-            return (
-              <div className="space-y-6">
-                <ExpenseGroup title="Recorrentes" expenses={recorrentes} />
-                <ExpenseGroup title="Avulsos" expenses={avulsos} />
-              </div>
-            );
-          })()}
+          {recentBills.length === 0 ? (
+            <p className="text-sm text-subtle">Nenhum gasto registrado ainda.</p>
+          ) : (
+            (() => {
+              const recorrentes = recentBills.filter((b) => b.isRecurring);
+              const avulsos = recentBills.filter((b) => !b.isRecurring);
+              return (
+                <div className="space-y-6">
+                  <BillGroup title="Recorrentes" bills={recorrentes} />
+                  <BillGroup title="Avulsos" bills={avulsos} />
+                </div>
+              );
+            })()
+          )}
         </div>
 
         {/* Upcoming Bills */}
@@ -148,46 +232,47 @@ export default function DashboardPage() {
           <div className="flex items-center justify-between mb-6">
             <h3 className="text-lg font-bold text-primary">Próximos Vencimentos</h3>
           </div>
-          <div className="space-y-4">
-            {mockUpcomingBills.map((bill) => {
-              const dueDate = new Date(bill.dueDate);
-              const today = new Date();
-              const daysUntil = Math.ceil(
-                (dueDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24)
-              );
-              const isUrgent = daysUntil <= 3;
+          {nextBills.length === 0 ? (
+            <p className="text-sm text-subtle">Sem contas a vencer no momento.</p>
+          ) : (
+            <div className="space-y-4">
+              {nextBills.map((bill) => {
+                const dueDate = new Date(bill.expirationDate);
+                const isUrgent = bill.daysUntilDue <= 3;
 
-              return (
-                <div
-                  key={bill.id}
-                  className="p-4 rounded-xl border transition-colors"
-                  style={{
-                    borderColor: "var(--border)",
-                    backgroundColor: "var(--bg-item)",
-                  }}
-                >
-                  <div className="flex items-center justify-between mb-2">
-                    <p className="font-semibold text-primary">{bill.name}</p>
-                    <span
-                      className={`text-xs font-semibold px-2 py-1 rounded-full ${
-                        isUrgent
-                          ? "bg-hero-danger/10 text-hero-danger"
-                          : "bg-hero-success/10 text-hero-success"
-                      }`}
-                    >
-                      {daysUntil > 0 ? `${daysUntil} dias` : "Hoje!"}
-                    </span>
+                return (
+                  <div
+                    key={bill.id}
+                    className="p-4 rounded-xl border transition-colors"
+                    style={{
+                      borderColor: "var(--border)",
+                      backgroundColor: "var(--bg-item)",
+                    }}
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <p className="font-semibold text-primary">{bill.name}</p>
+                      <span
+                        className={`text-xs font-semibold px-2 py-1 rounded-full ${isUrgent
+                            ? "bg-hero-danger/10 text-hero-danger"
+                            : "bg-hero-success/10 text-hero-success"
+                          }`}
+                      >
+                        {bill.daysUntilDue > 0
+                          ? `${bill.daysUntilDue} ${bill.daysUntilDue === 1 ? 'dia' : 'dias'}`
+                          : "Hoje!"}
+                      </span>
+                    </div>
+                    <p className="text-xl font-bold text-primary">
+                      R$ {bill.amount.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                    </p>
+                    <p className="text-sm text-subtle mt-1">
+                      Vence em {dueDate.toLocaleDateString("pt-BR", { timeZone: "UTC" })}
+                    </p>
                   </div>
-                  <p className="text-xl font-bold text-primary">
-                    R$ {bill.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
-                  </p>
-                  <p className="text-sm text-subtle mt-1">
-                    Vence em {dueDate.toLocaleDateString("pt-BR")}
-                  </p>
-                </div>
-              );
-            })}
-          </div>
+                );
+              })}
+            </div>
+          )}
 
           {/* Motivational badge */}
           <div className="mt-6 p-4 rounded-xl bg-linear-to-br from-hero-orange/5 to-hero-purple/5" style={{ border: "1px solid var(--border)" }}>
@@ -231,9 +316,8 @@ function MetricCard({
         </div>
         {change !== undefined && (
           <span
-            className={`flex items-center gap-1 text-sm font-semibold ${
-              change > 0 ? "text-hero-danger" : "text-hero-success"
-            }`}
+            className={`flex items-center gap-1 text-sm font-semibold ${change > 0 ? "text-hero-danger" : "text-hero-success"
+              }`}
           >
             {change > 0 ? <ArrowUpRight className="w-4 h-4" /> : <ArrowDownRight className="w-4 h-4" />}
             {Math.abs(change).toFixed(1)}%
@@ -247,19 +331,10 @@ function MetricCard({
   );
 }
 
-type Expense = {
-  id: number;
-  name: string;
-  category: string;
-  value: number;
-  date: string;
-  type: string;
-};
+function BillGroup({ title, bills }: { title: string; bills: Bill[] }) {
+  if (bills.length === 0) return null;
 
-function ExpenseGroup({ title, expenses }: { title: string; expenses: Expense[] }) {
-  if (expenses.length === 0) return null;
-
-  const total = expenses.reduce((sum, e) => sum + e.value, 0);
+  const total = bills.reduce((sum, b) => sum + toAmount(b.amount), 0);
 
   return (
     <div>
@@ -268,35 +343,32 @@ function ExpenseGroup({ title, expenses }: { title: string; expenses: Expense[] 
           <h4 className="text-sm font-bold text-primary uppercase tracking-wide">
             {title}
           </h4>
-          <span className="text-xs text-subtle">({expenses.length})</span>
+          <span className="text-xs text-subtle">({bills.length})</span>
         </div>
         <span className="text-xs text-muted font-semibold">
           R$ {total.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
         </span>
       </div>
       <div className="space-y-2">
-        {expenses.map((expense) => {
-          const cat = categoryStyles[expense.category] ?? categoryStyles.Outros;
+        {bills.map((bill) => {
+          const style = getCategoryStyle(bill.type);
+          const dateRef = bill.createdAt ?? bill.expirationDate;
           return (
-            <div key={expense.id} className="expense-row">
+            <div key={bill.id} className="expense-row">
               <div className="flex-1 min-w-0 flex items-center gap-2">
-                <p className="font-semibold text-primary truncate">
-                  {expense.name}
-                </p>
+                <p className="font-semibold text-primary truncate">{bill.name}</p>
                 <span
                   className="text-xs font-medium px-2 py-0.5 rounded-full shrink-0"
-                  style={{ backgroundColor: cat.bg, color: cat.fg }}
+                  style={{ backgroundColor: style.bg, color: style.color }}
                 >
-                  {expense.category}
+                  {style.label}
                 </span>
               </div>
               <div className="text-right shrink-0">
                 <p className="font-semibold text-primary text-sm sm:text-base">
-                  R$ {expense.value.toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
+                  R$ {toAmount(bill.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                 </p>
-                <p className="text-xs text-subtle">
-                  {formatRelativeDate(expense.date)}
-                </p>
+                <p className="text-xs text-subtle">{formatRelativeDate(dateRef)}</p>
               </div>
             </div>
           );
