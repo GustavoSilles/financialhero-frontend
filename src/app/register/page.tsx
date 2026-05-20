@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { Mail, Lock, Eye, EyeOff, User } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff, User, Briefcase } from "lucide-react";
 import ThemeToggle from "@/components/ThemeToggle";
 import { useAuth } from "@/contexts/AuthContext";
 import type { ApiError } from "@/api";
@@ -15,6 +15,7 @@ export default function RegisterPage() {
   const [formData, setFormData] = useState({
     name: "",
     email: "",
+    wage: "",
     password: "",
     confirmPassword: "",
   });
@@ -26,6 +27,13 @@ export default function RegisterPage() {
       router.replace("/dashboard");
     }
   }, [isAuthenticated, isLoading, router]);
+
+  const parseWage = (raw: string): number => {
+    if (!raw) return 0;
+    const normalized = raw.replace(/\./g, "").replace(",", ".");
+    const value = parseFloat(normalized);
+    return Number.isFinite(value) ? value : 0;
+  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -49,6 +57,12 @@ export default function RegisterPage() {
       return;
     }
 
+    const wage = parseWage(formData.wage);
+    if (wage < 0) {
+      setError("O salário não pode ser negativo");
+      return;
+    }
+
     setLoading(true);
     try {
       await register({
@@ -56,6 +70,7 @@ export default function RegisterPage() {
         lastName,
         email: formData.email.trim(),
         password: formData.password,
+        wage,
       });
       router.replace("/dashboard");
     } catch (err) {
@@ -138,6 +153,31 @@ export default function RegisterPage() {
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
                 />
               </div>
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium mb-2 text-muted">
+                Salário mensal (R$)
+              </label>
+              <div className="relative">
+                <Briefcase className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-subtle" />
+                <input
+                  type="text"
+                  inputMode="decimal"
+                  placeholder="0,00"
+                  className="input-field pl-12"
+                  value={formData.wage}
+                  onChange={(e) => {
+                    const next = e.target.value;
+                    if (next === "" || /^\d*(?:[.,]\d{0,2})?$/.test(next)) {
+                      setFormData({ ...formData, wage: next });
+                    }
+                  }}
+                />
+              </div>
+              <p className="text-xs text-subtle mt-2">
+                Usado para calcular quantas horas de trabalho seus gastos equivalem.
+              </p>
             </div>
 
             <div>
