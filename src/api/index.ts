@@ -4,7 +4,14 @@ export type { ApiError } from "./http";
 export { authStorage } from "./storage";
 
 export { authApi } from "./auth";
-export type { LoginRequest, RegisterRequest, AuthResponse } from "./auth";
+export type {
+  LoginRequest,
+  RegisterRequest,
+  AuthResponse,
+  ForgotPasswordRequest,
+  ResetPasswordRequest,
+  MessageResponse,
+} from "./auth";
 
 export { userApi } from "./user";
 export type {
