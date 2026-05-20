@@ -79,12 +79,28 @@ const dataByMonth: Record<string, CategoryRow[]> = {
   ],
 };
 
-export function HoursPerCategoryChart() {
-  const [month, setMonth] = useState(monthOptions[0].value);
+export interface HoursEntry {
+  name: string;
+  color: string;
+  hours: number;
+}
 
-  const data = dataByMonth[month]
-    .map((d) => ({ ...d, hours: +(d.value / HOURLY_RATE).toFixed(1) }))
-    .sort((a, b) => b.hours - a.hours);
+interface HoursPerCategoryChartProps {
+  entries?: HoursEntry[];
+}
+
+export function HoursPerCategoryChart({ entries }: HoursPerCategoryChartProps = {}) {
+  const [month, setMonth] = useState(monthOptions[0].value);
+  const isControlled = entries !== undefined;
+
+  const data = (
+    entries ??
+    dataByMonth[month].map((d) => ({
+      name: d.name,
+      color: d.color,
+      hours: +(d.value / HOURLY_RATE).toFixed(1),
+    }))
+  ).slice().sort((a, b) => b.hours - a.hours);
 
   const totalHours = data.reduce((sum, d) => sum + d.hours, 0);
 
@@ -96,7 +112,9 @@ export function HoursPerCategoryChart() {
           <p className="text-sm text-subtle">Quanto do seu tempo cada gasto consumiu</p>
         </div>
         <div className="flex flex-col items-end gap-1.5 shrink-0">
-          <MonthPicker value={month} options={monthOptions} onChange={setMonth} />
+          {!isControlled && (
+            <MonthPicker value={month} options={monthOptions} onChange={setMonth} />
+          )}
           <div className="flex items-center gap-1.5 text-sm text-hero-orange font-semibold">
             <Clock className="w-4 h-4" />
             {totalHours.toFixed(1)}h
@@ -104,6 +122,11 @@ export function HoursPerCategoryChart() {
         </div>
       </div>
 
+      {data.length === 0 ? (
+        <div className="py-10 text-center text-sm text-subtle">
+          Sem registros para o período selecionado
+        </div>
+      ) : (
       <div style={{ height: data.length * 44 + 24 }} className="w-full mt-4">
         <ResponsiveContainer width="100%" height="100%">
           <BarChart
@@ -143,6 +166,7 @@ export function HoursPerCategoryChart() {
           </BarChart>
         </ResponsiveContainer>
       </div>
+      )}
     </div>
   );
 }

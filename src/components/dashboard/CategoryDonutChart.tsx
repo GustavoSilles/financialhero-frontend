@@ -67,10 +67,15 @@ const dataByMonth: Record<string, CategorySlice[]> = {
   ],
 };
 
-export function CategoryDonutChart() {
+interface CategoryDonutChartProps {
+  entries?: CategorySlice[];
+}
+
+export function CategoryDonutChart({ entries }: CategoryDonutChartProps = {}) {
   const [month, setMonth] = useState(monthOptions[0].value);
-  const data = dataByMonth[month];
+  const data = entries ?? dataByMonth[month];
   const total = data.reduce((sum, d) => sum + d.value, 0);
+  const isControlled = entries !== undefined;
 
   return (
     <div className="card">
@@ -79,8 +84,15 @@ export function CategoryDonutChart() {
           <h3 className="text-lg font-bold text-primary">Gastos por Categoria</h3>
           <p className="text-sm text-subtle">Distribuição do mês</p>
         </div>
-        <MonthPicker value={month} options={monthOptions} onChange={setMonth} />
+        {!isControlled && (
+          <MonthPicker value={month} options={monthOptions} onChange={setMonth} />
+        )}
       </div>
+      {data.length === 0 ? (
+        <div className="py-12 text-center text-sm text-subtle">
+          Sem registros para o período selecionado
+        </div>
+      ) : (
       <div className="flex flex-col sm:flex-row items-center gap-4">
         <div className="relative h-48 w-48 shrink-0">
           <ResponsiveContainer width="100%" height="100%">
@@ -130,6 +142,7 @@ export function CategoryDonutChart() {
           })}
         </div>
       </div>
+      )}
     </div>
   );
 }
