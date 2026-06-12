@@ -15,8 +15,8 @@ import {
 
 const menuItems = [
   { label: "Dashboard", href: "/dashboard", icon: LayoutDashboard },
-  { label: "Comprovantes", href: "/dashboard/comprovantes", icon: Receipt },
   { label: "Gastos", href: "/dashboard/gastos", icon: CalendarClock },
+  { label: "Comprovantes", href: "/dashboard/comprovantes", icon: Receipt },
   { label: "Calculadora", href: "/dashboard/calculadora", icon: Calculator },
   { label: "Perfil", href: "/dashboard/perfil", icon: UserCircle },
 ];

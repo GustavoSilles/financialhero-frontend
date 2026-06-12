@@ -29,6 +29,7 @@ export type {
   PagedResponse,
   ListBillsParams,
   PayBillParams,
+  DeleteBillParams,
   CreateBillRequest,
   Month,
   MonthBill,

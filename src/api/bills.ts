@@ -51,6 +51,11 @@ export interface PayBillParams {
   month?: number;
 }
 
+export interface DeleteBillParams {
+  userId: string | number;
+  billId: string | number;
+}
+
 export interface CreateBillRequest {
   billType: BillType;
   name: string;
@@ -169,6 +174,13 @@ export const billsApi = {
       method: "POST",
       url: `/bill/${userId}/create`,
       data,
+    });
+  },
+
+  remove({ userId, billId }: DeleteBillParams): Promise<{ message: string }> {
+    return request<{ message: string }>({
+      method: "DELETE",
+      url: `/bill/${userId}/bill/${billId}`,
     });
   },
 

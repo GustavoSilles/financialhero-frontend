@@ -68,6 +68,13 @@ export const filesApi = {
     });
   },
 
+  remove(fileId: string | number): Promise<{ message: string }> {
+    return request<{ message: string }>({
+      method: "DELETE",
+      url: `/file-upload/${fileId}`,
+    });
+  },
+
   downloadUrl(fileId: string | number): string {
     const token = authStorage.getToken();
     const base = http.defaults.baseURL ?? "";

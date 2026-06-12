@@ -11,6 +11,7 @@ import {
   Paperclip,
   ChevronDown,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import {
   billsApi,
@@ -110,6 +111,9 @@ export default function ComprovantesPage() {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [fileType, setFileType] = useState<FileType>("COMPROVANTE");
   const [uploading, setUploading] = useState(false);
+
+  const [fileToDelete, setFileToDelete] = useState<FileUpload | null>(null);
+  const [deletingFile, setDeletingFile] = useState(false);
 
   const loadBills = useCallback(async (userId: string | number) => {
     try {
@@ -263,6 +267,23 @@ export default function ComprovantesPage() {
     }
   };
 
+  const handleDeleteFile = async () => {
+    if (!fileToDelete || deletingFile) return;
+
+    setDeletingFile(true);
+    try {
+      await filesApi.remove(fileToDelete.id);
+      setUploads((prev) => prev.filter((u) => u.id !== fileToDelete.id));
+      showToast("success", "Arquivo excluído com sucesso!");
+      setFileToDelete(null);
+    } catch (err) {
+      const apiError = err as ApiError;
+      showToast("error", apiError.message ?? "Não foi possível excluir o arquivo.");
+    } finally {
+      setDeletingFile(false);
+    }
+  };
+
   const renderFileRow = (file: FileUpload) => (
     <div
       key={file.id}
@@ -285,13 +306,23 @@ export default function ComprovantesPage() {
           </p>
         </div>
       </div>
-      <button
-        onClick={() => handleDownload(file.id, file.name)}
-        className="p-2 rounded-lg text-subtle hover:text-hero-orange hover:bg-hero-orange/10 transition-all"
-        aria-label="Baixar arquivo"
-      >
-        <Download className="w-4 h-4" />
-      </button>
+      <div className="flex items-center gap-1 shrink-0">
+        <button
+          onClick={() => handleDownload(file.id, file.name)}
+          className="p-2 rounded-lg text-subtle hover:text-hero-orange hover:bg-hero-orange/10 transition-all"
+          aria-label="Baixar arquivo"
+        >
+          <Download className="w-4 h-4" />
+        </button>
+        <button
+          onClick={() => setFileToDelete(file)}
+          className="p-2 rounded-lg text-subtle hover:text-hero-danger hover:bg-hero-danger/10 transition-all"
+          aria-label="Excluir arquivo"
+          title="Excluir arquivo"
+        >
+          <Trash2 className="w-4 h-4" />
+        </button>
+      </div>
     </div>
   );
 
@@ -633,6 +664,52 @@ export default function ComprovantesPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {fileToDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div
+            className="rounded-2xl w-full max-w-md p-6"
+            style={{
+              backgroundColor: "var(--bg-surface)",
+              border: "1px solid var(--border)",
+            }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-hero-danger/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-hero-danger" />
+              </div>
+              <h2 className="text-lg font-bold text-primary">Excluir arquivo</h2>
+            </div>
+            <p className="text-sm text-muted">
+              Tem certeza que deseja excluir{" "}
+              <span className="font-semibold text-primary">{fileToDelete.name}</span>?
+              Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3 pt-6">
+              <button
+                type="button"
+                onClick={() => setFileToDelete(null)}
+                disabled={deletingFile}
+                className="flex-1 px-4 py-3 rounded-xl font-medium text-muted transition-colors disabled:opacity-50"
+                style={{
+                  border: "1px solid var(--border)",
+                  backgroundColor: "var(--bg-hover)",
+                }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDeleteFile}
+                disabled={deletingFile}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-hero-danger transition-colors disabled:opacity-50 hover:opacity-90"
+              >
+                {deletingFile ? "Excluindo..." : "Excluir"}
+              </button>
+            </div>
           </div>
         </div>
       )}
