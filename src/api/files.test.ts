@@ -76,6 +76,16 @@ describe("filesApi", () => {
     });
   });
 
+  // remove: DELETE no arquivo pelo id
+  it("remove() sends a DELETE to the file endpoint", async () => {
+    await filesApi.remove(42);
+
+    expect(mockRequest.mock.calls[0][0]).toMatchObject({
+      method: "DELETE",
+      url: "/file-upload/42",
+    });
+  });
+
   // upload: monta FormData (file + type) e a query string com type/year/month
   it("upload() posts multipart FormData with the period in the query string", async () => {
     const file = new File(["conteudo"], "comprovante.pdf", { type: "application/pdf" });

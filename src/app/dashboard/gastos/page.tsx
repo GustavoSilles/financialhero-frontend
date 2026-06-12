@@ -8,6 +8,7 @@ import {
   X,
   ChevronLeft,
   ChevronRight,
+  Trash2,
 } from "lucide-react";
 import { DayPicker } from "react-day-picker";
 import { ptBR } from "react-day-picker/locale";
@@ -97,6 +98,8 @@ export default function GastosPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [updatingId, setUpdatingId] = useState<number | null>(null);
+  const [billToDelete, setBillToDelete] = useState<Bill | null>(null);
+  const [deleting, setDeleting] = useState(false);
   const initialLoadDoneRef = useRef(false);
 
   const [showModal, setShowModal] = useState(false);
@@ -313,6 +316,24 @@ export default function GastosPage() {
       showToast("error", apiError.message ?? "Não foi possível atualizar a conta");
     } finally {
       setUpdatingId(null);
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!user || !billToDelete || deleting) return;
+
+    setDeleting(true);
+    try {
+      await billsApi.remove({ userId: user.id, billId: billToDelete.id });
+      setBills((current) => current.filter((b) => b.id !== billToDelete.id));
+      await loadMonthBills(user.id, calendarYear, calendarMonthIdx);
+      showToast("success", "Conta excluída com sucesso!");
+      setBillToDelete(null);
+    } catch (err) {
+      const apiError = err as ApiError;
+      showToast("error", apiError.message ?? "Não foi possível excluir a conta.");
+    } finally {
+      setDeleting(false);
     }
   };
 
@@ -654,6 +675,18 @@ export default function GastosPage() {
                       <p className="font-bold text-primary text-lg">
                         R$ {toAmount(bill.amount).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}
                       </p>
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setBillToDelete(bill);
+                        }}
+                        aria-label={`Excluir ${bill.name}`}
+                        title="Excluir conta"
+                        className="p-2 rounded-lg text-subtle hover:text-hero-danger hover:bg-hero-danger/10 transition-colors shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
                     </div>
                   </div>
                 );
@@ -801,6 +834,49 @@ export default function GastosPage() {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {billToDelete && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div
+            className="rounded-2xl w-full max-w-md p-6"
+            style={{ backgroundColor: "var(--bg-surface)", border: "1px solid var(--border)" }}
+          >
+            <div className="flex items-center gap-3 mb-4">
+              <div className="w-10 h-10 rounded-full bg-hero-danger/10 flex items-center justify-center shrink-0">
+                <Trash2 className="w-5 h-5 text-hero-danger" />
+              </div>
+              <h2 className="text-lg font-bold text-primary">Excluir conta</h2>
+            </div>
+            <p className="text-sm text-muted">
+              Tem certeza que deseja excluir{" "}
+              <span className="font-semibold text-primary">{billToDelete.name}</span>?
+              {billToDelete.isRecurring && (
+                <> Por ser uma conta recorrente, ela deixará de aparecer em todos os meses.</>
+              )}{" "}
+              Esta ação não pode ser desfeita.
+            </p>
+            <div className="flex gap-3 pt-6">
+              <button
+                type="button"
+                onClick={() => setBillToDelete(null)}
+                disabled={deleting}
+                className="flex-1 px-4 py-3 rounded-xl font-medium text-muted transition-colors disabled:opacity-50"
+                style={{ border: "1px solid var(--border)", backgroundColor: "var(--bg-hover)" }}
+              >
+                Cancelar
+              </button>
+              <button
+                type="button"
+                onClick={handleDelete}
+                disabled={deleting}
+                className="flex-1 px-4 py-3 rounded-xl font-semibold text-white bg-hero-danger transition-colors disabled:opacity-50 hover:opacity-90"
+              >
+                {deleting ? "Excluindo..." : "Excluir"}
+              </button>
+            </div>
           </div>
         </div>
       )}

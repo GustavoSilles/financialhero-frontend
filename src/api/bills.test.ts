@@ -91,6 +91,16 @@ describe("billsApi", () => {
     expect(config.data).toEqual(payload);
   });
 
+  // remove: DELETE na URL aninhada, sem corpo/params
+  it("remove() builds the nested DELETE URL", async () => {
+    await billsApi.remove({ userId: 7, billId: 99 });
+
+    const config = configOf();
+    expect(config.method).toBe("DELETE");
+    expect(config.url).toBe("/bill/7/bill/99");
+    expect(config.data).toBeUndefined();
+  });
+
   // getUpcoming: sem "days", params fica vazio (backend usa seu próprio default)
   it("getUpcoming() sends empty params when days is omitted", async () => {
     await billsApi.getUpcoming({ userId: 7 });
